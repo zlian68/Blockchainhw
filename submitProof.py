@@ -30,7 +30,7 @@ def merkle_assignment():
         # Select from lower indices where more primes are unclaimed
         random_leaf_index = random.randint(20, 100)  # Focus on lower indices
         
-        print(f"\n尝试 {attempt + 1}/{max_attempts}")
+        print(f"\nAttempt {attempt + 1}/{max_attempts}")
         print(f"Attempting to claim prime at index {random_leaf_index}: {primes[random_leaf_index]}")
         
         proof = prove_merkle(tree, random_leaf_index)
@@ -45,30 +45,30 @@ def merkle_assignment():
                 # Pass the leaf directly (it's already bytes32, not hashed)
                 tx_hash = send_signed_msg(proof, leaves[random_leaf_index])
                 
-                # 检查交易是否成功
+                # Check transaction status
                 w3 = connect_to('bsc')
                 receipt = w3.eth.get_transaction_receipt(tx_hash)
                 
                 if receipt['status'] == 1:
-                    print(f"\n🎉 成功！质数 {primes[random_leaf_index]} 已被认领！")
-                    print(f"交易哈希: {tx_hash}")
-                    print(f"区块号: {receipt['blockNumber']}")
+                    print(f"\n🎉 Success! Prime {primes[random_leaf_index]} has been claimed!")
+                    print(f"Transaction Hash: {tx_hash}")
+                    print(f"Block Number: {receipt['blockNumber']}")
                     return tx_hash
                 else:
-                    print(f"交易失败，尝试其他质数...")
+                    print(f"Transaction failed, trying another prime...")
                     continue
                     
             except Exception as e:
-                print(f"错误: {e}")
-                print(f"尝试其他质数...")
+                print(f"Error: {e}")
+                print(f"Trying another prime...")
                 continue
         else:
-            print("签名验证失败")
+            print("Signature verification failed")
             return None
     
-    print(f"\n尝试了 {max_attempts} 次都失败了。")
-    print("可能所有随机选择的质数都已被认领。")
-    print("请运行 'python diagnose.py' 来找到未被认领的质数。")
+    print(f"\nFailed {max_attempts} attempts.")
+    print("It's possible all randomly selected primes are already claimed.")
+    print("Please run 'python diagnose.py' to find an unclaimed prime.")
 
 
 def generate_primes(num_primes):
