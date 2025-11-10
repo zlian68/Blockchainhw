@@ -18,28 +18,27 @@ def mine_block(k, prev_hash, transactions):
         print("mine_block expects positive integer")
         return b'\x00'
 
-    # Combine transactions into a single bytes object
-    transactions_bytes = ''.join(transactions).encode('utf-8')
-    
-    # Start with nonce = 0 and increment until we find a valid hash
     nonce = 0
     
     while True:
         # Convert nonce to bytes
         nonce_bytes = nonce.to_bytes((nonce.bit_length() + 7) // 8 or 1, 'big')
         
-        # Combine prev_hash + transactions + nonce
-        block_content = prev_hash + transactions_bytes + nonce_bytes
+        # Calculate hash in the SAME way as the test validator
+        h = hashlib.sha256()
+        h.update(prev_hash)
+        for line in transactions:
+            h.update(line.encode('utf-8'))
+        h.update(nonce_bytes)
         
-        # Calculate SHA-256 hash
-        block_hash = hashlib.sha256(block_content).digest()
+        # Get the hash as bytes
+        block_hash = h.digest()
         
         # Convert hash to integer to check trailing zeros in binary
         hash_int = int.from_bytes(block_hash, 'big')
         
         # Check if the last k bits are all zeros
         if hash_int % (2 ** k) == 0:
-            # Found a valid nonce!
             assert isinstance(nonce_bytes, bytes), 'nonce should be of type bytes'
             return nonce_bytes
         
