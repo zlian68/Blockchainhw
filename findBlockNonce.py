@@ -44,10 +44,6 @@ def mine_block(k, prev_hash, transactions):
             return nonce_bytes
         
         nonce += 1
-        
-        # Optional: Print progress every 100000 iterations
-        if nonce % 100000 == 0:
-            print(f"Tried {nonce} nonces so far...")
 
 
 def get_random_lines(filename, quantity):
@@ -68,10 +64,8 @@ def get_random_lines(filename, quantity):
 
 
 if __name__ == '__main__':
-    # This code will be helpful for your testing
     filename = "bitcoin_text.txt"
     num_lines = 10
-
     diff = 20
 
     prev_hash = hashlib.sha256(b"previous block").digest()
