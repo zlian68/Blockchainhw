@@ -1,0 +1,22 @@
+Bitcoin: A Peer-to-Peer Electronic Cash System
+Satoshi Nakamoto
+satoshin@gmx.com
+www.bitcoin.org
+Abstract. A purely peer-to-peer version of electronic cash would allow online payments to be sent directly from one party to another without going through a financial institution.
+Digital signatures provide part of the solution, but the main benefits are lost if a trusted third party is still required to prevent double-spending.
+We propose a solution to the double-spending problem using a peer-to-peer network.
+The network timestamps transactions by hashing them into an ongoing chain of hash-based proof-of-work, forming a record that cannot be changed without redoing the proof-of-work.
+The longest chain not only serves as proof of the sequence of events witnessed, but proof that it came from the largest pool of CPU power.
+Commerce on the Internet has come to rely almost exclusively on financial institutions serving as trusted third parties to process electronic payments.
+While the system works well enough for most transactions, it still suffers from the inherent weaknesses of the trust based model.
+Completely non-reversible transactions are not really possible, since financial institutions cannot avoid mediating disputes.
+The cost of mediation increases transaction costs, limiting the minimum practical transaction size and cutting off the possibility for small casual transactions.
+What is needed is an electronic payment system based on cryptographic proof instead of trust, allowing any two willing parties to transact directly with each other without the need for a trusted third party.
+We define an electronic coin as a chain of digital signatures.
+Each owner transfers the coin to the next by digitally signing a hash of the previous transaction and the public key of the next owner.
+The problem of course is the payee can't verify that one of the owners did not double-spend the coin.
+The solution we propose begins with a timestamp server.
+A timestamp server works by taking a hash of a block of items to be timestamped and widely publishing the hash.
+To implement a distributed timestamp server on a peer-to-peer basis, we will need to use a proof-of-work system.
+The proof-of-work involves scanning for a value that when hashed, such as with SHA-256, the hash begins with a number of zero bits.
+For our timestamp network, we implement the proof-of-work by incrementing a nonce in the block until a value is found that gives the block's hash the required zero bits.
