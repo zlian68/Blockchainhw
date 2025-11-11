@@ -125,11 +125,18 @@ contract AMM is AccessControl{
 	/*
 		Use the ERC20 transfer function to send amtA of tokenA and amtB of tokenB to the target recipient
 		The modifier onlyRole(LP_ROLE) ensures only liquidity providers can withdraw
+		IMPORTANT: Only admin (contract creator) can withdraw to any address
+		           Other LPs can only withdraw to their own address
 	*/
 	function withdrawLiquidity( address recipient, uint256 amtA, uint256 amtB ) public onlyRole(LP_ROLE) {
 		require( amtA > 0 || amtB > 0, 'Cannot withdraw 0' );
 		require( recipient != address(0), 'Cannot withdraw to 0 address' );
-		require( recipient == msg.sender, 'Can only withdraw to your own address' );
+		
+		// Only admin can withdraw to a different address
+		// Other LPs can only withdraw to themselves
+		if(!hasRole(DEFAULT_ADMIN_ROLE, msg.sender)) {
+			require( recipient == msg.sender, 'Can only withdraw to your own address' );
+		}
 		
 		if( amtA > 0 ) {
 			ERC20(tokenA).transfer(recipient,amtA);
