@@ -129,6 +129,8 @@ contract AMM is AccessControl{
 	function withdrawLiquidity( address recipient, uint256 amtA, uint256 amtB ) public onlyRole(LP_ROLE) {
 		require( amtA > 0 || amtB > 0, 'Cannot withdraw 0' );
 		require( recipient != address(0), 'Cannot withdraw to 0 address' );
+		require( recipient == msg.sender, 'Can only withdraw to your own address' );
+		
 		if( amtA > 0 ) {
 			ERC20(tokenA).transfer(recipient,amtA);
 		}
