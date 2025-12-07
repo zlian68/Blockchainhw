@@ -81,7 +81,7 @@ def scan_blocks(chain, contract_info="contract_info.json"):
         return
     warden_address = warden_account.address
     latest_block = w3.eth.block_number
-    from_block = max(0, latest_block - 10)
+    from_block = max(0, latest_block - 20)
     to_block = latest_block
     
     if chain == 'source':
@@ -89,7 +89,15 @@ def scan_blocks(chain, contract_info="contract_info.json"):
             deposit_filter = contract.events.Deposit.create_filter(from_block=from_block, to_block=to_block)
             deposit_events = deposit_filter.get_all_entries()
         except:
-            deposit_events = []
+            try:
+                logs = w3.eth.get_logs({
+                    'fromBlock': from_block,
+                    'toBlock': to_block,
+                    'address': contract_address
+                })
+                deposit_events = [contract.events.Deposit().process_log(log) for log in logs if log['topics'][0] == w3.keccak(text="Deposit(address,address,uint256)")]
+            except:
+                deposit_events = []
         dest_data = get_contract_info('destination', contract_info)
         dest_w3 = connect_to('destination')
         dest_contract = dest_w3.eth.contract(address=dest_data['address'], abi=dest_data['abi'])
@@ -110,16 +118,32 @@ def scan_blocks(chain, contract_info="contract_info.json"):
                 raw = getattr(signed, 'rawTransaction', None) or signed.raw_transaction
                 tx_hash = dest_w3.eth.send_raw_transaction(raw)
                 dest_w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
-                time.sleep(1)
+                time.sleep(2)
             except Exception as e:
                 print(f"Error calling wrap(): {e}")
     
     elif chain == 'destination':
+        unwrap_events = []
         try:
             unwrap_filter = contract.events.Unwrap.create_filter(from_block=from_block, to_block=to_block)
             unwrap_events = unwrap_filter.get_all_entries()
         except:
-            unwrap_events = []
+            pass
+        if not unwrap_events:
+            try:
+                logs = w3.eth.get_logs({
+                    'fromBlock': from_block,
+                    'toBlock': to_block,
+                    'address': contract_address
+                })
+                for log in logs:
+                    try:
+                        event = contract.events.Unwrap().process_log(log)
+                        unwrap_events.append(event)
+                    except:
+                        pass
+            except:
+                pass
         source_data = get_contract_info('source', contract_info)
         source_w3 = connect_to('source')
         source_contract = source_w3.eth.contract(address=source_data['address'], abi=source_data['abi'])
@@ -140,6 +164,6 @@ def scan_blocks(chain, contract_info="contract_info.json"):
                 raw = getattr(signed, 'rawTransaction', None) or signed.raw_transaction
                 tx_hash = source_w3.eth.send_raw_transaction(raw)
                 source_w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
-                time.sleep(1)
+                time.sleep(2)
             except Exception as e:
                 print(f"Error calling withdraw(): {e}")
