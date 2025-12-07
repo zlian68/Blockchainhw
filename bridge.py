@@ -81,46 +81,58 @@ def scan_blocks(chain, contract_info="contract_info.json"):
         return
     warden_address = warden_account.address
     latest_block = w3.eth.block_number
-    from_block = max(0, latest_block - 20)
+    from_block = max(0, latest_block - 25)
     to_block = latest_block
     
     if chain == 'source':
+        deposit_events = []
         try:
             deposit_filter = contract.events.Deposit.create_filter(from_block=from_block, to_block=to_block)
             deposit_events = deposit_filter.get_all_entries()
         except:
+            pass
+        if not deposit_events:
             try:
                 logs = w3.eth.get_logs({
                     'fromBlock': from_block,
                     'toBlock': to_block,
                     'address': contract_address
                 })
-                deposit_events = [contract.events.Deposit().process_log(log) for log in logs if log['topics'][0] == w3.keccak(text="Deposit(address,address,uint256)")]
+                for log in logs:
+                    try:
+                        evt = contract.events.Deposit().process_log(log)
+                        deposit_events.append(evt)
+                    except:
+                        pass
             except:
-                deposit_events = []
+                pass
         dest_data = get_contract_info('destination', contract_info)
         dest_w3 = connect_to('destination')
         dest_contract = dest_w3.eth.contract(address=dest_data['address'], abi=dest_data['abi'])
-        for event in deposit_events:
+        for i, event in enumerate(deposit_events):
             token = event['args']['token']
             recipient = event['args']['recipient']
             amount = event['args']['amount']
-            try:
-                nonce = dest_w3.eth.get_transaction_count(warden_address, 'pending')
-                txn = dest_contract.functions.wrap(token, recipient, amount).build_transaction({
-                    'from': warden_address,
-                    'nonce': nonce,
-                    'gas': 500000,
-                    'gasPrice': int(dest_w3.eth.gas_price * 1.1),
-                    'chainId': dest_w3.eth.chain_id
-                })
-                signed = warden_account.sign_transaction(txn)
-                raw = getattr(signed, 'rawTransaction', None) or signed.raw_transaction
-                tx_hash = dest_w3.eth.send_raw_transaction(raw)
-                dest_w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
-                time.sleep(2)
-            except Exception as e:
-                print(f"Error calling wrap(): {e}")
+            for attempt in range(3):
+                try:
+                    time.sleep(1)
+                    nonce = dest_w3.eth.get_transaction_count(warden_address, 'pending')
+                    txn = dest_contract.functions.wrap(token, recipient, amount).build_transaction({
+                        'from': warden_address,
+                        'nonce': nonce,
+                        'gas': 500000,
+                        'gasPrice': int(dest_w3.eth.gas_price * 1.2),
+                        'chainId': dest_w3.eth.chain_id
+                    })
+                    signed = warden_account.sign_transaction(txn)
+                    raw = getattr(signed, 'rawTransaction', None) or signed.raw_transaction
+                    tx_hash = dest_w3.eth.send_raw_transaction(raw)
+                    dest_w3.eth.wait_for_transaction_receipt(tx_hash, timeout=180)
+                    time.sleep(3)
+                    break
+                except Exception as e:
+                    print(f"Error calling wrap() attempt {attempt+1}: {e}")
+                    time.sleep(2)
     
     elif chain == 'destination':
         unwrap_events = []
@@ -138,8 +150,8 @@ def scan_blocks(chain, contract_info="contract_info.json"):
                 })
                 for log in logs:
                     try:
-                        event = contract.events.Unwrap().process_log(log)
-                        unwrap_events.append(event)
+                        evt = contract.events.Unwrap().process_log(log)
+                        unwrap_events.append(evt)
                     except:
                         pass
             except:
@@ -147,23 +159,27 @@ def scan_blocks(chain, contract_info="contract_info.json"):
         source_data = get_contract_info('source', contract_info)
         source_w3 = connect_to('source')
         source_contract = source_w3.eth.contract(address=source_data['address'], abi=source_data['abi'])
-        for event in unwrap_events:
+        for i, event in enumerate(unwrap_events):
             underlying_token = event['args']['underlying_token']
             recipient = event['args']['to']
             amount = event['args']['amount']
-            try:
-                nonce = source_w3.eth.get_transaction_count(warden_address, 'pending')
-                txn = source_contract.functions.withdraw(underlying_token, recipient, amount).build_transaction({
-                    'from': warden_address,
-                    'nonce': nonce,
-                    'gas': 500000,
-                    'gasPrice': int(source_w3.eth.gas_price * 1.1),
-                    'chainId': source_w3.eth.chain_id
-                })
-                signed = warden_account.sign_transaction(txn)
-                raw = getattr(signed, 'rawTransaction', None) or signed.raw_transaction
-                tx_hash = source_w3.eth.send_raw_transaction(raw)
-                source_w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
-                time.sleep(2)
-            except Exception as e:
-                print(f"Error calling withdraw(): {e}")
+            for attempt in range(3):
+                try:
+                    time.sleep(1)
+                    nonce = source_w3.eth.get_transaction_count(warden_address, 'pending')
+                    txn = source_contract.functions.withdraw(underlying_token, recipient, amount).build_transaction({
+                        'from': warden_address,
+                        'nonce': nonce,
+                        'gas': 500000,
+                        'gasPrice': int(source_w3.eth.gas_price * 1.2),
+                        'chainId': source_w3.eth.chain_id
+                    })
+                    signed = warden_account.sign_transaction(txn)
+                    raw = getattr(signed, 'rawTransaction', None) or signed.raw_transaction
+                    tx_hash = source_w3.eth.send_raw_transaction(raw)
+                    source_w3.eth.wait_for_transaction_receipt(tx_hash, timeout=180)
+                    time.sleep(3)
+                    break
+                except Exception as e:
+                    print(f"Error calling withdraw() attempt {attempt+1}: {e}")
+                    time.sleep(2)
