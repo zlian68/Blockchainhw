@@ -106,20 +106,20 @@ def scan_blocks(chain, contract_info="contract_info.json"):
                         pass
             except:
                 pass
+        deposit_events = sorted(deposit_events, key=lambda x: (x['blockNumber'], x['transactionIndex']))
         dest_data = get_contract_info('destination', contract_info)
         dest_w3 = connect_to('destination')
         dest_contract = dest_w3.eth.contract(address=dest_data['address'], abi=dest_data['abi'])
-        current_nonce = dest_w3.eth.get_transaction_count(warden_address, 'latest')
         for event in deposit_events:
             token = event['args']['token']
             recipient = event['args']['recipient']
             amount = event['args']['amount']
-            success = False
             for attempt in range(3):
                 try:
+                    nonce = dest_w3.eth.get_transaction_count(warden_address, 'pending')
                     txn = dest_contract.functions.wrap(token, recipient, amount).build_transaction({
                         'from': warden_address,
-                        'nonce': current_nonce,
+                        'nonce': nonce,
                         'gas': 500000,
                         'gasPrice': int(dest_w3.eth.gas_price * 1.5),
                         'chainId': dest_w3.eth.chain_id
@@ -128,15 +128,11 @@ def scan_blocks(chain, contract_info="contract_info.json"):
                     raw = getattr(signed, 'rawTransaction', None) or signed.raw_transaction
                     tx_hash = dest_w3.eth.send_raw_transaction(raw)
                     receipt = dest_w3.eth.wait_for_transaction_receipt(tx_hash, timeout=180)
-                    if receipt['status'] == 1:
-                        current_nonce += 1
-                        success = True
-                        time.sleep(2)
-                        break
+                    time.sleep(5)
+                    break
                 except Exception as e:
                     print(f"Error wrap attempt {attempt+1}: {e}")
-                    time.sleep(3)
-                    current_nonce = dest_w3.eth.get_transaction_count(warden_address, 'latest')
+                    time.sleep(5)
     
     elif chain == 'destination':
         unwrap_events = []
@@ -160,20 +156,20 @@ def scan_blocks(chain, contract_info="contract_info.json"):
                         pass
             except:
                 pass
+        unwrap_events = sorted(unwrap_events, key=lambda x: (x['blockNumber'], x['transactionIndex']))
         source_data = get_contract_info('source', contract_info)
         source_w3 = connect_to('source')
         source_contract = source_w3.eth.contract(address=source_data['address'], abi=source_data['abi'])
-        current_nonce = source_w3.eth.get_transaction_count(warden_address, 'latest')
         for event in unwrap_events:
             underlying_token = event['args']['underlying_token']
             recipient = event['args']['to']
             amount = event['args']['amount']
-            success = False
             for attempt in range(3):
                 try:
+                    nonce = source_w3.eth.get_transaction_count(warden_address, 'pending')
                     txn = source_contract.functions.withdraw(underlying_token, recipient, amount).build_transaction({
                         'from': warden_address,
-                        'nonce': current_nonce,
+                        'nonce': nonce,
                         'gas': 500000,
                         'gasPrice': int(source_w3.eth.gas_price * 1.5),
                         'chainId': source_w3.eth.chain_id
@@ -182,12 +178,8 @@ def scan_blocks(chain, contract_info="contract_info.json"):
                     raw = getattr(signed, 'rawTransaction', None) or signed.raw_transaction
                     tx_hash = source_w3.eth.send_raw_transaction(raw)
                     receipt = source_w3.eth.wait_for_transaction_receipt(tx_hash, timeout=180)
-                    if receipt['status'] == 1:
-                        current_nonce += 1
-                        success = True
-                        time.sleep(2)
-                        break
+                    time.sleep(5)
+                    break
                 except Exception as e:
                     print(f"Error withdraw attempt {attempt+1}: {e}")
-                    time.sleep(3)
-                    current_nonce = source_w3.eth.get_transaction_count(warden_address, 'latest')
+                    time.sleep(5)
